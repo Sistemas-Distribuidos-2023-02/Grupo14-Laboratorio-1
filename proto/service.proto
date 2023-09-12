@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package grpc;
+
+option go_package = "/proto";
+
+
+message Message {
+  string content = 1;
+}
+
+service MessagingService {
+  rpc SendMessage(Message) returns (Message);
+}
