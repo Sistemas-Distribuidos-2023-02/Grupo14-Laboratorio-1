@@ -1,14 +1,21 @@
 syntax = "proto3";
 
-package grpc;
+package regional;
 
 option go_package = "/proto";
 
+service RegionalServer {
+  rpc ReceiveValue(Value) returns (Response);
+}
+
+message Value {
+  int32 value = 1;
+}
 
 message Message {
   string content = 1;
 }
 
-service MessagingService {
-  rpc SendMessage(Message) returns (Message);
+message Response {
+  string message = 1;
 }

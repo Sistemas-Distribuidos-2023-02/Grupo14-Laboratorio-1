@@ -18,86 +18,86 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-// MessagingServiceClient is the client API for MessagingService service.
+// RegionalServerClient is the client API for RegionalServer service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type MessagingServiceClient interface {
-	SendMessage(ctx context.Context, in *Message, opts ...grpc.CallOption) (*Message, error)
+type RegionalServerClient interface {
+	ReceiveValue(ctx context.Context, in *Value, opts ...grpc.CallOption) (*Response, error)
 }
 
-type messagingServiceClient struct {
+type regionalServerClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewMessagingServiceClient(cc grpc.ClientConnInterface) MessagingServiceClient {
-	return &messagingServiceClient{cc}
+func NewRegionalServerClient(cc grpc.ClientConnInterface) RegionalServerClient {
+	return &regionalServerClient{cc}
 }
 
-func (c *messagingServiceClient) SendMessage(ctx context.Context, in *Message, opts ...grpc.CallOption) (*Message, error) {
-	out := new(Message)
-	err := c.cc.Invoke(ctx, "/grpc.MessagingService/SendMessage", in, out, opts...)
+func (c *regionalServerClient) ReceiveValue(ctx context.Context, in *Value, opts ...grpc.CallOption) (*Response, error) {
+	out := new(Response)
+	err := c.cc.Invoke(ctx, "/regional.RegionalServer/ReceiveValue", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// MessagingServiceServer is the server API for MessagingService service.
-// All implementations must embed UnimplementedMessagingServiceServer
+// RegionalServerServer is the server API for RegionalServer service.
+// All implementations must embed UnimplementedRegionalServerServer
 // for forward compatibility
-type MessagingServiceServer interface {
-	SendMessage(context.Context, *Message) (*Message, error)
-	mustEmbedUnimplementedMessagingServiceServer()
+type RegionalServerServer interface {
+	ReceiveValue(context.Context, *Value) (*Response, error)
+	mustEmbedUnimplementedRegionalServerServer()
 }
 
-// UnimplementedMessagingServiceServer must be embedded to have forward compatible implementations.
-type UnimplementedMessagingServiceServer struct {
+// UnimplementedRegionalServerServer must be embedded to have forward compatible implementations.
+type UnimplementedRegionalServerServer struct {
 }
 
-func (UnimplementedMessagingServiceServer) SendMessage(context.Context, *Message) (*Message, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SendMessage not implemented")
+func (UnimplementedRegionalServerServer) ReceiveValue(context.Context, *Value) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReceiveValue not implemented")
 }
-func (UnimplementedMessagingServiceServer) mustEmbedUnimplementedMessagingServiceServer() {}
+func (UnimplementedRegionalServerServer) mustEmbedUnimplementedRegionalServerServer() {}
 
-// UnsafeMessagingServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to MessagingServiceServer will
+// UnsafeRegionalServerServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to RegionalServerServer will
 // result in compilation errors.
-type UnsafeMessagingServiceServer interface {
-	mustEmbedUnimplementedMessagingServiceServer()
+type UnsafeRegionalServerServer interface {
+	mustEmbedUnimplementedRegionalServerServer()
 }
 
-func RegisterMessagingServiceServer(s grpc.ServiceRegistrar, srv MessagingServiceServer) {
-	s.RegisterService(&MessagingService_ServiceDesc, srv)
+func RegisterRegionalServerServer(s grpc.ServiceRegistrar, srv RegionalServerServer) {
+	s.RegisterService(&RegionalServer_ServiceDesc, srv)
 }
 
-func _MessagingService_SendMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Message)
+func _RegionalServer_ReceiveValue_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Value)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MessagingServiceServer).SendMessage(ctx, in)
+		return srv.(RegionalServerServer).ReceiveValue(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/grpc.MessagingService/SendMessage",
+		FullMethod: "/regional.RegionalServer/ReceiveValue",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MessagingServiceServer).SendMessage(ctx, req.(*Message))
+		return srv.(RegionalServerServer).ReceiveValue(ctx, req.(*Value))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// MessagingService_ServiceDesc is the grpc.ServiceDesc for MessagingService service.
+// RegionalServer_ServiceDesc is the grpc.ServiceDesc for RegionalServer service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var MessagingService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "grpc.MessagingService",
-	HandlerType: (*MessagingServiceServer)(nil),
+var RegionalServer_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "regional.RegionalServer",
+	HandlerType: (*RegionalServerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "SendMessage",
-			Handler:    _MessagingService_SendMessage_Handler,
+			MethodName: "ReceiveValue",
+			Handler:    _RegionalServer_ReceiveValue_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
