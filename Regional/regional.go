@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"google.golang.org/grpc"
 
@@ -44,39 +45,6 @@ func generateRandomNum() int {
 	return pedir
 }
 
-func ConnectToRabbitMQ(url, queueName string) error {
-	// Conectarse a RabbitMQ
-	connection, err := amqp.Dial(url)
-	if err != nil {
-		return err
-	}
-	defer connection.Close()
-
-	// Crear un canal de comunicación
-	channel, err := connection.Channel()
-	if err != nil {
-		return err
-	}
-	defer channel.Close()
-
-	// Declarar la cola a la que te quieres conectar
-	_, err = channel.QueueDeclare(
-		queueName, // Nombre de la cola
-		true,      // Durable
-		false,     // Autoeliminable
-		false,     // Exclusiva
-		false,     // No esperar a que se confirme la entrega
-		nil,       // Argumentos adicionales
-	)
-	if err != nil {
-		return err
-	}
-
-	// Puedes realizar operaciones adicionales con la cola aquí si es necesario.
-
-	return nil
-}
-
 type RegionalServer struct {
 	pb.UnimplementedRegionalServerServer
 }
@@ -85,6 +53,7 @@ type RegionalServer struct {
 func (s *RegionalServer) ReceiveMessage(ctx context.Context, req *pb.Message) (*pb.Response, error) {
 	content := req.Content
 	fmt.Printf("Mensaje recibido: %s\n", content)
+	time.Sleep(3 * time.Second)
 	partes := strings.Split(string(content), " ")
 	keys, err1 := strconv.Atoi(partes[0])
 	tipo := partes[1]
@@ -107,7 +76,7 @@ func (s *RegionalServer) ReceiveMessage(ctx context.Context, req *pb.Message) (*
 	}
 
 	// Envia el mensaje a RabbitMQ
-	err := PublishToRabbitMQ((strconv.Itoa(request) + " " + "nombre-server"))
+	err := PublishToRabbitMQ((strconv.Itoa(request) + " " + req.Name))
 	if err != nil {
 		log.Fatalf("Error al enviar el mensaje a RabbitMQ: %v", err)
 	}

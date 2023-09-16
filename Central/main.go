@@ -17,7 +17,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-var wg sync.WaitGroup
+var wg sync.WaitGroup // no se usarlo??
 var numKeys int
 
 func archivo() [3]int {
@@ -65,13 +65,16 @@ func generateRandomKeys(min, max int) int {
 // Función para enviar un valor numérico a los servidores regionales
 func sendValueToRegionals(val string) {
 	// Direcciones de los servidores regionales
-	serverAddresses := []string{"localhost:50051"} //, "localhost:50052", "localhost:50053"} // Agrega las direcciones de tus servidores regionales
+	serverAddresses := []string{"localhost:50051-america"}
+	//serverAddresses := {"dist053.inf.santiago.usm.cl:50051-america", "dist054.inf.santiago.usm.cl:50051-asia", "dist055.inf.santiago.usm.cl:50051-europa", "dist056.inf.santiago.usm.cl:50051-oceania"}
 
 	// Valor numérico a enviar
 	msg := val
-
 	for _, address := range serverAddresses {
 		// Establecer conexión gRPC con el servidor regional
+		partes := strings.Split(string(address), "-")
+		address = partes[0]
+		nombre := partes[1]
 		conn, err := grpc.Dial(address, grpc.WithInsecure())
 		if err != nil {
 			log.Printf("No se pudo conectar al servidor regional en %s: %v", address, err)
@@ -82,18 +85,18 @@ func sendValueToRegionals(val string) {
 		client := pb.NewRegionalServerClient(conn) // puede que este alverrre
 
 		// Crear un contexto con un límite de tiempo para la llamada gRPC
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
 		// Enviar el valor numérico al servidor regional
-		response, err := client.ReceiveMessage(ctx, &pb.Message{Content: msg})
+		response, err := client.ReceiveMessage(ctx, &pb.Message{Content: msg, Name: nombre})
 		if err != nil {
 			log.Printf("Fallo al enviar el valor al servidor regional en %s: %v", address, err)
 			continue
 		}
 
 		// Procesar la respuesta del servidor regional
-		log.Printf("Respuesta del servidor regional en %s: %s", address, response.Message)
+		log.Printf("Respuesta del servidor %s en %s: %s", nombre, address, response.Message)
 	}
 }
 
@@ -167,7 +170,12 @@ func main() {
 
 	iterations := numeros[2]
 	for i := 0; i < iterations || iterations == -1; i++ {
-		fmt.Printf("Generacion %d/%d\n", i+1, iterations)
+		if iterations != -1 {
+			fmt.Printf("Generacion %d/%d\n", i+1, iterations)
+		} else {
+			fmt.Printf("Generacion %d/Infinito\n", i+1)
+		}
+
 		numKeys = generateRandomKeys(numeros[0], numeros[1])
 		fmt.Printf("Generando %d llaves de acceso...\n", numKeys)
 		sendValueToRegionals((strconv.Itoa(numKeys) + " " + "disponibles"))
