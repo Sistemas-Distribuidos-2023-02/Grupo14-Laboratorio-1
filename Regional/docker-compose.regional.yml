@@ -1,0 +1,8 @@
+version: "3.9"
+services:
+  regional:
+    build:
+      context: ../.
+      dockerfile: ./regional/dockerfile.regional
+    ports:
+      - "8081:8080"

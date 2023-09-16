@@ -4,12 +4,24 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"log"
 	"math/rand"
+	"net"
 	"os"
+	"os/signal"
 	"strconv"
+	"strings"
+	"syscall"
+	"time"
 
-	pb "github.com/Sistemas-Distribuidos-2023-02/Grupo14-Laboratorio-1/proto" // Asegúrate de usar la ruta correcta a tus archivos .proto
+	"google.golang.org/grpc"
+
+	pb "github.com/Sistemas-Distribuidos-2023-02/Grupo14-Laboratorio-1/proto"
+	"github.com/streadway/amqp"
 )
+
+var request int
+var serverActive bool = true
 
 func generateRandomNum() int {
 	file, err := os.Open("Regional/parametros_de_inicio.txt")
@@ -33,32 +45,126 @@ func generateRandomNum() int {
 	return pedir
 }
 
-type regionalServer struct{}
+type RegionalServer struct {
+	pb.UnimplementedRegionalServerServer
+}
 
-func (s *regionalServer) ReceiveMessage(ctx context.Context, req *pb.Message) (*pb.Response, error) {
-	// Manejar el mensaje recibido desde el servidor central
-	//content := req.Content
+// ReceiveMessage es la implementación del método ReceiveMessage
+func (s *RegionalServer) ReceiveMessage(ctx context.Context, req *pb.Message) (*pb.Response, error) {
+	content := req.Content
+	fmt.Printf("Mensaje recibido: %s\n", content)
+	time.Sleep(3 * time.Second)
+	partes := strings.Split(string(content), " ")
+	keys, err1 := strconv.Atoi(partes[0])
+	tipo := partes[1]
+	if err1 != nil {
+		log.Fatalf("Error al escuchar: %v", err1)
+	}
+	if tipo == "disponibles" {
+		fmt.Printf("Pido: %d\n", request)
+	}
 
-	// Realizar cualquier lógica necesaria
+	if tipo == "asignadas" {
+		if request <= keys {
+			request = 0
+			fmt.Printf("me faltan: %d\n", request)
+			serverActive = false
+		} else {
+			request = request - keys // no es correcto pero casi
+			fmt.Printf("me faltan: %d\n", keys)
+		}
+	}
 
-	// Responder al servidor central
-	response := &pb.Response{Message: "Mensaje recibido en el servidor regional"}
-	return response, nil
+	// Envia el mensaje a RabbitMQ
+	err := PublishToRabbitMQ((strconv.Itoa(request) + " " + req.Name))
+	if err != nil {
+		log.Fatalf("Error al enviar el mensaje a RabbitMQ: %v", err)
+	}
+	return &pb.Response{Message: "Mensaje recibido"}, nil
+}
+
+func PublishToRabbitMQ(message string) error {
+	// Configura la conexión a RabbitMQ
+	connection, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	if err != nil {
+		return err
+	}
+	defer connection.Close()
+
+	// Crea un canal
+	channel, err := connection.Channel()
+	if err != nil {
+		return err
+	}
+	defer channel.Close()
+
+	// Declara la cola a la que deseas enviar el mensaje
+	queueName := "mi_cola"
+	_, err = channel.QueueDeclare(
+		queueName, // Nombre de la cola
+		true,      // Durable
+		false,     // Autoeliminable
+		false,     // Exclusiva
+		false,     // No esperar a que se confirme la entrega
+		nil,       // Argumentos adicionales
+	)
+	if err != nil {
+		return err
+	}
+
+	// Publica el mensaje en la cola
+	err = channel.Publish(
+		"",        // Intercambio
+		queueName, // Cola
+		false,     // Mandatorio
+		false,     // Publicación inmediata
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte(message),
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func shouldServerStop() bool {
+	return !serverActive && request == 0
 }
 
 func main() {
-	keys := generateRandomNum()
-	fmt.Printf("Se pediran %d claves", keys)
-	/* listen, err := net.Listen("tcp", ":50051")
+	// Crea un servidor gRPC y registra el servicio
+	request = generateRandomNum()
+	lis, err := net.Listen("tcp", ":50051") // Escucha en el puerto 50051
 	if err != nil {
-		log.Fatalf("No se pudo escuchar en el puerto 50051: %v", err)
+		log.Fatalf("Error al escuchar: %v", err)
 	}
 
-	server := grpc.NewServer()
-	pb.RegisterRegionalServerServer(server, &regionalServer{})
+	grpcServer := grpc.NewServer()
+	pb.RegisterRegionalServerServer(grpcServer, &RegionalServer{})
 
-	fmt.Println("Servidor Regional gRPC escuchando en el puerto 50051...")
-	if err := server.Serve(listen); err != nil {
-		log.Fatalf("Fallo al servir: %v", err)
-	} */
+	// Configura una señal para cerrar el servidor cuando se recibe SIGINT (Ctrl+C) o SIGTERM
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+
+	// Inicia el servidor en una goroutine
+	go func() {
+		fmt.Println("Servidor gRPC escuchando en :50051")
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Fatalf("Error al servir: %v", err)
+		}
+	}()
+
+	// Espera a que se reciba la señal para cerrar el servidor
+	<-stop
+	fmt.Println("Cerrando el servidor gRPC...")
+
+	// Verifica si el servidor debe detenerse después de recibir la señal
+	if shouldServerStop() {
+		fmt.Println("Deteniendo el servidor gRPC...")
+		grpcServer.GracefulStop()
+		fmt.Println("Servidor gRPC cerrado.")
+	}
 }
