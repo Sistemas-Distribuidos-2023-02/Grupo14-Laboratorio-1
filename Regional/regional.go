@@ -10,7 +10,9 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
+	"time"
 
 	"google.golang.org/grpc"
 
@@ -43,22 +45,61 @@ func generateRandomNum() int {
 	return pedir
 }
 
-func ConnectToRabbitMQ(url, queueName string) error {
-	// Conectarse a RabbitMQ
-	connection, err := amqp.Dial(url)
+type RegionalServer struct {
+	pb.UnimplementedRegionalServerServer
+}
+
+// ReceiveMessage es la implementación del método ReceiveMessage
+func (s *RegionalServer) ReceiveMessage(ctx context.Context, req *pb.Message) (*pb.Response, error) {
+	content := req.Content
+	fmt.Printf("Mensaje recibido: %s\n", content)
+	time.Sleep(3 * time.Second)
+	partes := strings.Split(string(content), " ")
+	keys, err1 := strconv.Atoi(partes[0])
+	tipo := partes[1]
+	if err1 != nil {
+		log.Fatalf("Error al escuchar: %v", err1)
+	}
+	if tipo == "disponibles" {
+		fmt.Printf("Pido: %d\n", request)
+	}
+
+	if tipo == "asignadas" {
+		if request <= keys {
+			request = 0
+			fmt.Printf("me faltan: %d\n", request)
+			serverActive = false
+		} else {
+			request = request - keys // no es correcto pero casi
+			fmt.Printf("me faltan: %d\n", keys)
+		}
+	}
+
+	// Envia el mensaje a RabbitMQ
+	err := PublishToRabbitMQ((strconv.Itoa(request) + " " + req.Name))
+	if err != nil {
+		log.Fatalf("Error al enviar el mensaje a RabbitMQ: %v", err)
+	}
+	return &pb.Response{Message: "Mensaje recibido"}, nil
+}
+
+func PublishToRabbitMQ(message string) error {
+	// Configura la conexión a RabbitMQ
+	connection, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
 		return err
 	}
 	defer connection.Close()
 
-	// Crear un canal de comunicación
+	// Crea un canal
 	channel, err := connection.Channel()
 	if err != nil {
 		return err
 	}
 	defer channel.Close()
 
-	// Declarar la cola a la que te quieres conectar
+	// Declara la cola a la que deseas enviar el mensaje
+	queueName := "mi_cola"
 	_, err = channel.QueueDeclare(
 		queueName, // Nombre de la cola
 		true,      // Durable
@@ -71,33 +112,22 @@ func ConnectToRabbitMQ(url, queueName string) error {
 		return err
 	}
 
-	// Puedes realizar operaciones adicionales con la cola aquí si es necesario.
+	// Publica el mensaje en la cola
+	err = channel.Publish(
+		"",        // Intercambio
+		queueName, // Cola
+		false,     // Mandatorio
+		false,     // Publicación inmediata
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte(message),
+		},
+	)
+	if err != nil {
+		return err
+	}
 
 	return nil
-}
-
-type RegionalServer struct {
-	pb.UnimplementedRegionalServerServer
-}
-
-// ReceiveMessage es la implementación del método ReceiveMessage
-func (s *RegionalServer) ReceiveMessage(ctx context.Context, req *pb.Message) (*pb.Response, error) {
-	content := req.Content
-	fmt.Printf("Mensaje recibido: %s\n", content)
-	keys, err := strconv.Atoi(content)
-	if err != nil {
-		log.Fatalf("Error al escuchar: %v", err)
-	}
-
-	if request <= keys {
-		fmt.Printf("Pido: %d\n", request)
-		request = 0
-		serverActive = false
-	} else {
-		request = request - keys // no es correcto pero casi
-		fmt.Printf("Pido: %d\n", keys)
-	}
-	return &pb.Response{Message: "Mensaje recibido"}, nil
 }
 
 func shouldServerStop() bool {
