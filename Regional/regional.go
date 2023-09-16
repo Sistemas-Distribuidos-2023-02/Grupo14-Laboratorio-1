@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"google.golang.org/grpc"
@@ -84,20 +85,80 @@ type RegionalServer struct {
 func (s *RegionalServer) ReceiveMessage(ctx context.Context, req *pb.Message) (*pb.Response, error) {
 	content := req.Content
 	fmt.Printf("Mensaje recibido: %s\n", content)
-	keys, err := strconv.Atoi(content)
-	if err != nil {
-		log.Fatalf("Error al escuchar: %v", err)
+	partes := strings.Split(string(content), " ")
+	keys, err1 := strconv.Atoi(partes[0])
+	tipo := partes[1]
+	if err1 != nil {
+		log.Fatalf("Error al escuchar: %v", err1)
+	}
+	if tipo == "disponibles" {
+		fmt.Printf("Pido: %d\n", request)
 	}
 
-	if request <= keys {
-		fmt.Printf("Pido: %d\n", request)
-		request = 0
-		serverActive = false
-	} else {
-		request = request - keys // no es correcto pero casi
-		fmt.Printf("Pido: %d\n", keys)
+	if tipo == "asignadas" {
+		if request <= keys {
+			request = 0
+			fmt.Printf("me faltan: %d\n", request)
+			serverActive = false
+		} else {
+			request = request - keys // no es correcto pero casi
+			fmt.Printf("me faltan: %d\n", keys)
+		}
+	}
+
+	// Envia el mensaje a RabbitMQ
+	err := PublishToRabbitMQ((strconv.Itoa(request) + " " + "nombre-server"))
+	if err != nil {
+		log.Fatalf("Error al enviar el mensaje a RabbitMQ: %v", err)
 	}
 	return &pb.Response{Message: "Mensaje recibido"}, nil
+}
+
+func PublishToRabbitMQ(message string) error {
+	// Configura la conexión a RabbitMQ
+	connection, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	if err != nil {
+		return err
+	}
+	defer connection.Close()
+
+	// Crea un canal
+	channel, err := connection.Channel()
+	if err != nil {
+		return err
+	}
+	defer channel.Close()
+
+	// Declara la cola a la que deseas enviar el mensaje
+	queueName := "mi_cola"
+	_, err = channel.QueueDeclare(
+		queueName, // Nombre de la cola
+		true,      // Durable
+		false,     // Autoeliminable
+		false,     // Exclusiva
+		false,     // No esperar a que se confirme la entrega
+		nil,       // Argumentos adicionales
+	)
+	if err != nil {
+		return err
+	}
+
+	// Publica el mensaje en la cola
+	err = channel.Publish(
+		"",        // Intercambio
+		queueName, // Cola
+		false,     // Mandatorio
+		false,     // Publicación inmediata
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte(message),
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func shouldServerStop() bool {
