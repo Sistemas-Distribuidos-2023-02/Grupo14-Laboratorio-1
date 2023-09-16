@@ -107,7 +107,6 @@ func main() {
 		fmt.Printf("Generacion %d/%d\n", i+1, iterations)
 		numKeys := generateRandomKeys(numeros[0], numeros[1])
 		fmt.Printf("Generando %d llaves de acceso...\n", numKeys)
-		// Notificar a la central a través de gRPC.
 		sendValueToRegionals(numKeys)
 	}
 
