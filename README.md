@@ -1,7 +1,7 @@
 # Grupo14-Laboratorio-1
 
 ## Integrantes
-Martín Muñoz  201904632-2 \\
+Martín Muñoz  201904632-2
 Benjamín Soto 201973522-5
 
 # Para iniciar los servidores:
