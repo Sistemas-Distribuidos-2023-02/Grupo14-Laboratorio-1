@@ -9,11 +9,14 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	pb "github.com/Sistemas-Distribuidos-2023-02/Grupo14-Laboratorio-1/proto" // Asegúrate de usar la ruta correcta a tus archivos .proto
 	"google.golang.org/grpc"
 )
+
+var wg sync.WaitGroup
 
 func archivo() [3]int {
 	file, err := os.Open("Central/parametros_de_inicio.txt")
@@ -65,6 +68,7 @@ func sendValueToRegionals(val int) {
 
 	// Valor numérico a enviar
 	value := val
+	msg := strconv.Itoa(value)
 
 	for _, address := range serverAddresses {
 		// Establecer conexión gRPC con el servidor regional
@@ -75,14 +79,14 @@ func sendValueToRegionals(val int) {
 		}
 		defer conn.Close()
 
-		client := pb.NewRegionalServerClient(conn)
+		client := pb.NewRegionalServerClient(conn) // puede que este alverrre
 
 		// Crear un contexto con un límite de tiempo para la llamada gRPC
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
 		// Enviar el valor numérico al servidor regional
-		response, err := client.ReceiveValue(ctx, &pb.Value{Value: int32(value)})
+		response, err := client.ReceiveMessage(ctx, &pb.Message{Content: msg})
 		if err != nil {
 			log.Printf("Fallo al enviar el valor al servidor regional en %s: %v", address, err)
 			continue
@@ -103,7 +107,6 @@ func main() {
 		fmt.Printf("Generacion %d/%d\n", i+1, iterations)
 		numKeys := generateRandomKeys(numeros[0], numeros[1])
 		fmt.Printf("Generando %d llaves de acceso...\n", numKeys)
-		// Notificar a la central a través de gRPC.
 		sendValueToRegionals(numKeys)
 	}
 

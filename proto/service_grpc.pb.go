@@ -22,7 +22,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type RegionalServerClient interface {
-	ReceiveValue(ctx context.Context, in *Value, opts ...grpc.CallOption) (*Response, error)
+	ReceiveMessage(ctx context.Context, in *Message, opts ...grpc.CallOption) (*Response, error)
 }
 
 type regionalServerClient struct {
@@ -33,9 +33,9 @@ func NewRegionalServerClient(cc grpc.ClientConnInterface) RegionalServerClient {
 	return &regionalServerClient{cc}
 }
 
-func (c *regionalServerClient) ReceiveValue(ctx context.Context, in *Value, opts ...grpc.CallOption) (*Response, error) {
+func (c *regionalServerClient) ReceiveMessage(ctx context.Context, in *Message, opts ...grpc.CallOption) (*Response, error) {
 	out := new(Response)
-	err := c.cc.Invoke(ctx, "/regional.RegionalServer/ReceiveValue", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/grpc.RegionalServer/ReceiveMessage", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (c *regionalServerClient) ReceiveValue(ctx context.Context, in *Value, opts
 // All implementations must embed UnimplementedRegionalServerServer
 // for forward compatibility
 type RegionalServerServer interface {
-	ReceiveValue(context.Context, *Value) (*Response, error)
+	ReceiveMessage(context.Context, *Message) (*Response, error)
 	mustEmbedUnimplementedRegionalServerServer()
 }
 
@@ -54,8 +54,8 @@ type RegionalServerServer interface {
 type UnimplementedRegionalServerServer struct {
 }
 
-func (UnimplementedRegionalServerServer) ReceiveValue(context.Context, *Value) (*Response, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ReceiveValue not implemented")
+func (UnimplementedRegionalServerServer) ReceiveMessage(context.Context, *Message) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReceiveMessage not implemented")
 }
 func (UnimplementedRegionalServerServer) mustEmbedUnimplementedRegionalServerServer() {}
 
@@ -70,20 +70,20 @@ func RegisterRegionalServerServer(s grpc.ServiceRegistrar, srv RegionalServerSer
 	s.RegisterService(&RegionalServer_ServiceDesc, srv)
 }
 
-func _RegionalServer_ReceiveValue_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Value)
+func _RegionalServer_ReceiveMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Message)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RegionalServerServer).ReceiveValue(ctx, in)
+		return srv.(RegionalServerServer).ReceiveMessage(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/regional.RegionalServer/ReceiveValue",
+		FullMethod: "/grpc.RegionalServer/ReceiveMessage",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RegionalServerServer).ReceiveValue(ctx, req.(*Value))
+		return srv.(RegionalServerServer).ReceiveMessage(ctx, req.(*Message))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -92,12 +92,12 @@ func _RegionalServer_ReceiveValue_Handler(srv interface{}, ctx context.Context, 
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var RegionalServer_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "regional.RegionalServer",
+	ServiceName: "grpc.RegionalServer",
 	HandlerType: (*RegionalServerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ReceiveValue",
-			Handler:    _RegionalServer_ReceiveValue_Handler,
+			MethodName: "ReceiveMessage",
+			Handler:    _RegionalServer_ReceiveMessage_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
