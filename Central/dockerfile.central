@@ -12,8 +12,8 @@ COPY go.sum .
 RUN go mod download
 
 # Copiamos el código fuente y los archivos protobuf
-COPY ../proto /app/proto
-COPY ../Central /app/Central
+COPY proto /app/proto
+COPY Central /app/Central
 
 # Compilamos el código de Go
 RUN go build -o /Central
@@ -23,4 +23,4 @@ RUN go build -o /Central
 EXPOSE 8080
 
 # Comando para ejecutar la aplicación
-CMD ["./central"]
+CMD ["/Central"]
