@@ -11,7 +11,6 @@ COPY go.sum .
 # Copiamos todo el contenido de la carpeta ../Central a /app en la imagen
 COPY ../Central /app
 
-RUN go build -o /app/Central
 
 # Exponemos el puerto en el que se ejecutará el servidor
 EXPOSE 8080
