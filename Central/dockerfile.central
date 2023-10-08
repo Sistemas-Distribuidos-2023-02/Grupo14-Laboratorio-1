@@ -16,7 +16,7 @@ COPY ../proto /app/proto
 COPY ../Central /app/Central
 
 # Compilamos el código de Go
-RUN go build -o /Central/main.go
+RUN go build -o /Central
 
 
 # Exponemos el puerto en el que se ejecutará el servidor
